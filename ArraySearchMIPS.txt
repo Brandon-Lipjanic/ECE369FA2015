@@ -1,0 +1,220 @@
+.data
+
+.text
+
+vbsme:
+
+spiral:	
+	addi $sp, $sp, -4	#make space on stack for sp
+	sw   $ra, 0($sp)	#store $ra
+
+	lw   $s0, 0($a0)	#$s0 = frame width
+	lw   $s1, 4($a0)	#$s1 = frame height
+	lw   $s2, 8($a0)	#s2 = window width
+	lw   $s3, 12($a0)	#$s3 = window height
+
+	sub  $t0, $s0, $s2	#rowDistance = (frame width - window width) + 1
+	addi $t0, $t0, 1	# $t0 = rowDistance
+	
+	sub $t1, $s1, $s3	#colDistance = (frame height - window height)
+				# $t1 = colDistance
+
+	addi $t2, $zero, 1	#$t2 = whichLoop (initalize to 1)
+
+	addi $s4, $zero, 62000  #s4 = minSAD = 620000
+	addi $t4, $zero, 0 	#tempColPosition = 0
+	addi $t5, $zero, 0 	#tempRowPosition = 0
+	add $t6, $zero, $a1 	#beginaddress = startAddress
+	add $t7, $zero, $a1	#endAddress = startAddress
+	addi $s5, $zero, 62000  #register to hold this value always
+
+frameSearch:
+	
+	add $t6, $t0, $t1	#add row and colDistance
+	beq $t6, $zero, exit	#if both are zero go to exit, can reuse t6 now
+	
+	
+
+frameSearchSwitch:
+
+
+	addi	$t3, $zero, 1	
+	beq	$t3, $t2, rowRightInit		#move to rowRight
+
+	addi	$t3, $zero, 2
+	beq	$t3, $t2, colDownInit		#move to colDown
+	
+	addi	$t3, $zero, 3
+	beq	$t3, $t2, rowLeftInit		#move to rowLeft
+
+	addi	$t3, $zero, 4
+	beq	$t3, $t2, colUpInit		#move to colUp
+
+
+#Case 1 traversing right accross a row
+
+rowRightInit:
+	
+	add	$t6, $zero, $t7			#beginAddress = endAddress 
+	addi	$t8, $zero, 0			# i = 0
+
+rowRightMove:
+	
+	beq 	$t8, $t0, rowRightFinal		# if i = rowDistance stop looping
+	
+	#CALL currentSAD 
+	#Im assuming the value of currentSAD will be moved into t3
+	
+	$beq	$s4, $s5, compareRowRightCurAndMin	# if minSAD != 62000
+	$addi 	$t4, $t4, 1		     		# tempColPosition = tempColPosition + 1 no offset by 4 because not a mem address
+
+compareRowRightCurAndMin:  
+
+	slt $t9, $t3, $s4			# t9 = 1 if currentSAD < minSAD
+	beq $t9, $zero, rowRightNextAddr	# skip reassigning values if currentSAD >= minSAD
+	addi $s4, $t3, 0			# minSAD = currentSAD
+	addi $v0, $t5, 0			#finalRowPos = tempRowPos
+	addi $v1, $t4, 0			#finalColPos = tempColPos
+	
+rowRightNextAddr:
+	
+	addi $t6, $t6, 4			# beginAddress = beginAddress + 1
+	addi $t8, $t8, 1			# i = i + 1
+	j    rowRightMove			# go back to top of for loop 
+
+rowRightFinal
+
+	addi $t7, $t6, -4			# endAddress = beginAddress -1
+	addi $t0, $t0, -4			# rowDistance = rowDistance -1 	
+	addi $t2, $zero, 2			# whichLoop = 2			
+	j    frameSearch			# break; (go back to top of while loop)
+
+#Case 2 traversing down a collumn 
+
+colDownInit:
+
+	mul $t8, $s0, 4				# t8 = frameWidth * 4 (can reuse t8 for i)
+	add $t6, $t7, $t8			# beginAddress = endAddress + frameWidth*4
+	addi $t8, $zero, 0			# i = 0 
+	
+colDownMove:
+
+	beq $t8, $t1, colDownFinal		# if i = colDistance go to colDownFinal
+
+	#CALL currentSAD 
+	#Im assuming the value of currentSAD will be moved into t3
+
+	addi $t5, $t5, 1			# tempRowPos = tempRowPos + 1
+	
+compareColDownCurAndMin:
+
+	slt $t9, $t3, $s4			# t9 = 1 if currentSAD < minSAD
+	beq $t9, $zero, colDownNextAddr		# skip reassigning values if currentSAD > = minSAD
+	addi $s4, $t3, 0			# minSAD = currentSAD
+	addi $v0, $t5, 0			#finalRowPos = tempRowPos
+	addi $v1, $t4, 0			#finalColPos = tempColPos
+
+colDownNextAddr:
+
+	mul $t9, $s4, 4				#t9 = frameWidth*4
+	add $t6, $t6, $t9			#beginAddress = beginAddress + frameWidth
+	addi $t8, $t8, 1			# i = i + 1
+	j   colDownMove				# go back to top of for loop
+
+colDownFinal:
+
+	mul $t9, $s4, 4				#t9 = frameWidth*4
+	sub $t7, $t6, $t9			# endAddress = beginAddress - frameWidth*4
+	addi $t7, $t7, -1			# endAddress = endAddress - 1
+	addi $t1, $t1, -1			# colDistance = colDistance - 1
+	addi $t2, $zero, 3			# whichLoop = 3
+	j frameSearch				# break; (go back to top of while loop)
+
+#Case 3 traversing left accross a row
+
+rowLeftInit:
+
+	addi $t6, $t7, 0			# beginAddress = endAddress
+	addi $t8, $t0, 0			# i = rowDistance
+	
+rowLeftMove:
+	
+	beq $t8, $zero, rowLeftFinal		# if i = 0 go to rowLeftFinal
+	
+	#CALL currentSAD
+	#Im assuming the value of currentSAD will be moved into t3
+
+	addi $t4, $t4, -1			# tempColPos = tempColPos - 1
+
+compareRowLeftCurAndMin:
+
+	slt $t9, $t3, $s4			# t9 = 1 if currentSAD < minSAD
+	beq $t9, $zero, rowLeftNextAddr		# skip reassigning values if currentSAD >= minSAD
+	addi $s4, $t3, 0			# minSAD = currentSAD
+	addi $v0, $t5, 0			#finalRowPos = tempRowPos
+	addi $v1, $t4, 0			#finalColPos = tempColPos
+	
+rowLeftNextAddr:
+
+	addi $t6, $t6, -4			# beginAddress = beginAddress - 1	
+	addi $t8, $t8, -1			# i = i -1 
+	j    rowLeftMove			# go back to top of for loop
+
+rowLeftFinal:
+
+	addi $t7, $t6, 4			# endAddress = beginAddress + 1
+	addi $t0, $t0, -1			# rowDistance = rowDistance - 1
+	addi $t2, $zero, 4			# whichLoop = 4
+	j    frameSearch
+
+#Case 4 movement up a collumn
+
+colUpInit:
+
+	mul $t9, $s4, 4 			# t9 = framewidth*4
+	sub $t6, $t7, $t9			# beginAddress = endAddress - framewidth*4
+	addi $t8, $t1, 0			# i = colDistance
+
+colUpMove:
+
+	beq $t8, $zero, colUpFinal		# if i = 0 go to colUpFinal
+
+	#CALL currentSAD
+	#Im assuming the value of currentSAD is stored in t3
+	
+	addi $t5, $t5, -4			#tempRowPos = tempRowPos - 1
+
+compareColUpCurAndMin:
+
+	slt $t9, $t3, $s4			# t9 = 1 if currentSAD < minSAD
+	beq $t9, $zero, colUpNextAddr		# skip reassigning values if currentSAD >= minSAD
+	addi $s4, $t3, 0			# minSAD = currentSAD
+	addi $v0, $t5, 0			#finalRowPos = tempRowPos
+	addi $v1, $t4, 0			#finalColPos = tempColPos
+
+colUpNextAddr:
+
+	mul $t9, $s4, 4				#t9 = framewidth*4
+	sub $t6, $t6, $t9			#beginAddress = beginAddress - frameWidth*4
+	j   colUpMove				#go to top of for loop
+
+colUpFinal:
+
+	mul $t9, $s4, 4				#t9 = framewidth*4
+	add $t7, $t6, $t9			#endAddress = beginAddress + frameWidth*4
+	addi $t7, $t7, 1			#endAddress = endAddress +1
+	addi $t1, t1, -1			#colDistance =colDistance -1
+	addi $t2, $zero, 1			#whichLoop = 1
+	j    frameSearch
+
+exit:
+	
+	#Return v0, v1
+
+
+	
+
+
+
+	 
+	
