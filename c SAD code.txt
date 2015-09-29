@@ -1,0 +1,108 @@
+
+[i, j] = frame size
+[k, l] = window size
+
+void frameSearch(sizes, frame address, window address){
+
+	rowDistance = (i - k + 1);    // initialize first distance moved in row
+	colDistance = (j - l);        // initialize first distance moved in col
+
+
+	whichLoop = 1;             // determines which case statement to follow
+                    			// will be rowRight (1), colDown(2), rowLeft(3), colUp(4)
+	frameAddress = frame address     // initialize frame address
+	windowAddress = window address     // initialize window address
+
+
+	while(rowDistance != 0 && colDistance != 0){
+
+		beginaddress = first frame address
+
+		switch(whichLoop):
+        
+        		case(whichLoop == 1): // row right movement
+            
+           	 		for(i = 0; i < rowDistance; i++){
+
+               				windowSearch(beginAddress, window address, window size);
+               	 			beginAddress = beginAddress + 4;
+                
+            			}
+
+            			endAddress = beginAddress
+				
+	    			rowDistance--;
+			whichLoop = 2;
+            
+        		break;
+
+       	 		case(whichLoop == 2): // col down movement
+            
+            			beginAddress = endAddress + 4*frame width;
+
+            			for(i = 0; i < colDistance; i++){
+                			windowSearch(address of top right frame element in window);
+					beginAddress = beginAddress + (frame width * 4)
+            			}
+
+            			endAddress = beginAddress
+	    			colDistance--;
+
+			whichLoop = 3;
+        		break;
+
+
+        		case(whichLoop == 3): // row left movement
+
+            			for(i = rowDistance; i >= 0; i--){
+                			windowSearch(address of top right frame element in window);
+					beginAddress = beginAddress - 4;
+            			}
+
+            			endAddress = beginAddress 	    			
+			rowDistance--;
+			whichLoop = 4;
+        		break;
+
+
+        		case(whichLoop == 4): // col up movement
+            
+            			beginAddress = endAddress - 4*frameWidth;
+
+            			for(i = colDistance; i >= 0; i--){
+               				windowSearch(address of top right frame element in window);
+					beginAddress = beginAddress - (frameWidth* 4);
+            			}
+            			endAddress = beginAddress  	    			
+			colDistance--;
+
+		whichLoop = 1;
+        		break;
+
+
+	
+	}
+}
+
+
+
+windowSearch(window size, frame begin address,  window address){
+
+	windowRow
+	windowCol
+
+	while(1)
+		for(windowRow = row address; windowRow < beginAddress + window width*4; windowRow = windowRow + 4)
+
+			col address = row address; // update afer this!
+
+			for(windowCol = col address; windowCol < beginAddress + window height * 4; windowCol = windowCol + 4 * frame width){
+
+				call SAD;
+				check min;
+			} 	
+		}
+	}
+
+
+    

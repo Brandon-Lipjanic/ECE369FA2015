@@ -1,0 +1,238 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <process.h>
+
+int* spiral(int* fwSize, int* frameAddress1, int* windowAddress1);
+int compare(int* fwSize, int* frameAddress, int* windowAddress);
+int SAD(int* frameAddress, int* windowAddress);
+int* findFramePoints(int* fwSize, int* frameAddress, int* SADAddress);
+
+// frame
+int frame[16][16] = { { 0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, 2, 3, 4, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }, { 2, 3, 32, 1, 2, 3, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30 }, { 3, 4, 1, 2, 3, 4, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45 }, { 0, 4, 2, 3, 4, 5, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60 }, 
+{ 0, 5, 3, 4, 5, 6, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75 }, { 0, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 66, 72, 78, 84, 90 }, { 0, 4, 14, 21, 28, 35, 42, 49, 56, 63, 70, 77, 84, 91, 98, 105 },
+{ 0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120 }, { 0, 9, 18, 27, 36, 45, 54, 63, 72, 81, 90, 99, 108, 117, 126, 135 }, { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150 }, { 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 121, 132, 143, 154, 165 }, { 0, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 0, 1, 2, 3 },
+{ 0, 13, 26, 39, 52, 65, 78, 91, 104, 114, 130, 143, 1, 2, 3, 4 }, { 0, 14, 28, 42, 56, 70, 84, 98, 112, 126, 140, 154, 2, 3, 4, 5 }, { 0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 3, 4, 5, 6 } };
+// frame begin addres
+int* frameAddress = frame;
+// window
+int window[4][4] = { { 0, 1, 2, 3 }, { 1, 2, 3, 4 }, { 2, 3, 4, 5 }, { 3, 4, 5, 6 } };
+// window address
+int* windowAddress = window;
+// (frame row, frame cols, window row, window col)
+int fwSize[4] = {16, 16, 4, 4}; // [i, j, k, l]
+// fwSize address
+int* fwSizeAddress = fwSize;
+
+
+
+void main(){
+	
+	int* SADAddress;
+	//int framePoints[2] = { 0, 0 };
+	int* framePoints;
+
+	SADAddress = spiral(fwSizeAddress, frameAddress, windowAddress);
+
+	framePoints = findFramePoints(fwSizeAddress, frameAddress, SADAddress);
+
+	printf("%d, %d \n", *(framePoints), *(framePoints + 1));
+
+	system("pause");
+
+	return;
+}
+
+int* spiral(int* fwSize, int* frameAddress1, int* windowAddress1){
+
+	int i = *(fwSize);
+	int j = *(fwSize + 1);
+	int k = *(fwSize + 2);
+	int l = *(fwSize + 3);
+
+	int rowDistance = (i - k + 1);			// initialize first distance moved in row
+	int colDistance = (j - l);				// initialize first distance moved in col
+
+	int frameWidth = j;
+
+	int whichLoop = 1;						// determines which case statement to follow
+											// will be rowRight (1), colDown(2), rowLeft(3), colUp(4)
+	int* frameAddress = frameAddress1;		// initialize frame address
+	int* windowAddress = windowAddress1;		// initialize window address
+
+	int* beginAddress = frameAddress;		// starting address
+	int* SADAddress = frameAddress;			// the address of the window/frame combination with the smallest SAD
+	int* endAddress = frameAddress;
+
+	int minSAD = 100000000;
+	int currentSAD = 0;
+
+	while(rowDistance != 0 || colDistance != 0){
+		switch (whichLoop){
+		case 1: // row right movement
+			beginAddress = endAddress;
+			for (i = 0; i < rowDistance; i++){
+				currentSAD = compare(fwSize, beginAddress, windowAddress);
+				if (currentSAD < minSAD){
+					minSAD = currentSAD;
+					SADAddress = beginAddress;
+				}
+				beginAddress = beginAddress + 1;	// in MIPS will be beginAddress + 4
+			}
+
+			endAddress = beginAddress - 1;
+			rowDistance--;
+			whichLoop = 2;
+		break;
+
+		case 2: // col down movement
+			beginAddress = endAddress + frameWidth;		// in MIPS will be 4 * frameWidth
+
+			for (i = 0; i < colDistance; i++){
+				currentSAD = compare(fwSize, beginAddress, windowAddress);
+				if (currentSAD < minSAD){
+					minSAD = currentSAD;
+					SADAddress = beginAddress;
+				}
+				beginAddress = beginAddress + frameWidth; // in MIPS will be (frameWidth * 4)
+			}
+
+			endAddress = beginAddress - frameWidth - 1; 
+			colDistance--;
+			whichLoop = 3;
+		break;
+
+		case 3: // row left movement
+			beginAddress = endAddress;
+			for (i = rowDistance; i > 0; i--){
+				currentSAD = compare(fwSize, beginAddress, windowAddress);
+				if (currentSAD < minSAD){
+					minSAD = currentSAD;
+					SADAddress = beginAddress;
+				}
+				beginAddress = beginAddress - 1;		// in MIPS will be beginAddress - 4
+			}
+
+			endAddress = beginAddress + 1;
+			rowDistance--;
+			whichLoop = 4;
+		break;
+
+		case 4: // col up movement
+			beginAddress = endAddress - frameWidth;		// in MIPS will be 4 * frameWidth
+
+			for (i = colDistance; i > 0; i--){
+				currentSAD = compare(fwSize, beginAddress, windowAddress);
+				if (currentSAD < minSAD){
+					minSAD = currentSAD;
+					SADAddress = beginAddress;
+				}
+				beginAddress = beginAddress - frameWidth; // in MIPS will be (frameWidth * 4)
+			}
+			endAddress = beginAddress + frameWidth + 1;
+			colDistance--;
+			whichLoop = 1;
+		break;
+		}
+	}
+
+
+	return SADAddress;
+}
+
+
+int compare(int* fwSize, int* frameAddress, int* windowAddress){
+
+
+	int frameRow = *(fwSize);
+	int frameCol = *(fwSize + 1);
+	int windowRow = *(fwSize + 2);
+	int windowCol = *(fwSize + 3);
+	
+	int* frameAddressColMovement = frameAddress;
+	int* windowAddressColMovement = windowAddress;
+	int* frameAddressRowMovement = frameAddress;
+	int* windowAddressRowMovement = windowAddress;
+	int row = 0;
+	int col = 0;
+	int sum = 0;
+	int value = 0;
+
+	for (row = 0; row < windowCol; row++){
+
+		frameAddressColMovement = frameAddressRowMovement; // restore original addresses
+		windowAddressColMovement = windowAddressRowMovement;
+
+		for (col = 0; col < windowRow; col++){
+
+			value = SAD(frameAddressColMovement, windowAddressColMovement);
+			sum = sum + value;
+
+			frameAddressColMovement = frameAddressColMovement + frameCol; // movement down the column of frame
+			windowAddressColMovement = windowAddressColMovement + windowCol; // movement down the column of window
+		}
+
+		frameAddressRowMovement = frameAddressRowMovement + 1; // movement across the row of frame
+		windowAddressRowMovement = windowAddressRowMovement + 1; // movement across the row of window
+	}
+
+	printf("%d\n", sum);
+
+	return sum;
+}
+
+int SAD(int* frameAddress, int* windowAddress){
+
+	int frameVal = *frameAddress;
+	int windowVal = *windowAddress;
+	int result = 0;
+
+	result = abs(frameVal - windowVal);
+
+
+	return result;
+}
+
+int* findFramePoints(int* fwSize, int* frameAddress, int* SADAddress){
+
+	int frameRows = *(fwSize);			// number of rows in frame
+	int frameColumns = *(fwSize + 1);	// number of columns in frame
+
+	int addressDifference1 = SADAddress - frameAddress;
+	int addressDifference2 = SADAddress - frameAddress;
+	int rowNumber = 0;
+	int colNumber = 0;
+	int k = 0;
+
+	
+	//find row number
+
+	for (int i = 0; i < frameRows; i++){
+
+		addressDifference1 = addressDifference1 - frameColumns;
+		if (addressDifference1 < frameColumns){
+			rowNumber = i;
+			break;
+		}
+	}
+
+	addressDifference2 = addressDifference2 - rowNumber*frameColumns;
+
+	// find column number
+
+	for (int j = addressDifference2; j >= 0; j--){
+	
+		k++;
+		if (addressDifference2 == 0){
+			colNumber = k;
+			break;
+		}
+		addressDifference2--;
+	}
+
+	int arrayPositions[2] = { rowNumber, colNumber };
+	int* arrayPositionsAddress = arrayPositions;
+
+	return arrayPositionsAddress;
+}
+
