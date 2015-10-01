@@ -802,8 +802,7 @@ spiral:
 	lw   $s1, 4($a0)	#$s1 = frame height
 	lw   $s2, 8($a0)	#s2 = window width
 	lw   $s3, 12($a0)	#$s3 = window height
-	lw   $a1, 0($a1)
-	lw   $a2  0($a2)
+
 
 	sub  $t0, $s0, $s2	#rowDistance = (frame width - window width) + 1
 	addi $t0, $t0, 1	# $t0 = rowDistance
@@ -1151,8 +1150,7 @@ compare:
 	addi $t1, $zero, 0		# col = 0
 	addi $t2, $zero, 0		# sum = 0
 	addi $t3, $zero, 0 		# value = 0
-	sll  $t4, $s1, 2		# frameCol * 4
-	sll  $t5, $s3, 2		# windowCol * 4
+
 
 rowLoop:
 
@@ -1162,13 +1160,16 @@ rowLoop:
 	move $s6, $t6			# fACM = fARM
 	move $s7, $t7			# wACM = wARM
 	
+
+	
 colLoopInit:
 	
 	addi $t1, $zero, 0		# col = 0
 
 colLoopBegin:
-	
-	sub $t9, $s6, $s7		# t9 = fACM - wACM
+	lw   $t3, 0($s6)
+	lw   $t4, 0($s7)
+	sub $t9, $t3, $t4		# t9 = fACM(val) - wACM(val)
 	slt $t8, $t9, $zero		# t8 = 1 if t9 is negative
 	beq $t8, $zero, positive	# go to positive if t9 is pos else do 2's compliment
 	nor $t9, $t9, $zero		# invert t4 store in t9
@@ -1177,7 +1178,9 @@ colLoopBegin:
 positive:
 	
 	add $t2, $t2, $t9		# sum = sum + value
-	add $s6, $s6, $t4		# fACM = fACM + frameCol
+	sll $t5, $s1, 2
+	add $s6, $s6, $t5		# fACM = fACM + frameCol
+	sll $t5, $s3, 2
 	add $s7, $s7, $t5		# wACM = wACM + windowCol	
 	addi $t1, $t1, 1		# col = col + 1
 	bne $t1, $s2, colLoopBegin 	# go to colLoopBegin if col < windowRow
