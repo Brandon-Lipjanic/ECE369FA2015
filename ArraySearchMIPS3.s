@@ -802,6 +802,8 @@ spiral:
 	lw   $s1, 4($a0)	#$s1 = frame height
 	lw   $s2, 8($a0)	#s2 = window width
 	lw   $s3, 12($a0)	#$s3 = window height
+	lw   $a1, 0($a1)
+	lw   $a2  0($a2)
 
 	sub  $t0, $s0, $s2	#rowDistance = (frame width - window width) + 1
 	addi $t0, $t0, 1	# $t0 = rowDistance
