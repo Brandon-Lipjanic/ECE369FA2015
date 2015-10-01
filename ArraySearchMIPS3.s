@@ -17,8 +17,8 @@
 #
 # $v0 is for row / $v1 is for column
 
-# test 0 For the 16X16 frame size and 4X4 window size
-# The result should be 12, 12
+# test 0 For the 4x4 frame size and 2x2 window size
+# The result should be 0,2
 asize0:  .word    4,  4,  2, 2    #i, j, k, l
 frame0:  .word    0,  0,  1,  2, 
          .word    0,  0,  3,  4
@@ -490,6 +490,20 @@ newline: .asciiz     "\n"
 main: 
     addi    $sp, $sp, -4    # Make space on stack
     sw      $ra, 0($sp)     # Save return address
+	
+	# Start test 0
+	########################################################
+	la 		$a0, asize0
+	la      $a1, frame0	
+	la 		$a2, window0
+	
+	jal 	vbsme
+	jal 	print_result
+	
+	######################################################
+	#End of test 0 
+	
+	#
          
     # Start test 1 
     ############################################################
@@ -806,12 +820,12 @@ spiral:
 
 frameSearch:
 	
-	add $t6, $t0, $t1	#add row and colDistance
+	
 				#	beq $t6, $zero, exit	#if both are zero go to exit, can reuse t6 now
 	slt $t8, $t0, $zero
-	slt $t9, $t0, $zero
-	or $t8, $t8, $t9
-	beq $t8, $zero, exit
+	slt $t9, $t1, $zero
+	and $t8, $t8, $t9
+	bne $t8, $zero, exit
 
 	
  frameSearchSwitch:
@@ -888,7 +902,7 @@ rowRightNextAddr:
 rowRightFinal:
 
 	addi $t7, $t6, -4			# endAddress = beginAddress -1
-	addi $t0, $t0, -4			# rowDistance = rowDistance -1 	
+	addi $t0, $t0, -1			# rowDistance = rowDistance -1 	
 	addi $t2, $zero, 2			# whichLoop = 2			
 	j    frameSearch			# break; (go back to top of while loop)
 
@@ -1153,9 +1167,9 @@ colLoopInit:
 colLoopBegin:
 	
 	sub $t9, $s6, $s7		# t9 = fACM - wACM
-	slt $t8, $t9, $zero		# t4 = 1 if t9 is negative
+	slt $t8, $t9, $zero		# t8 = 1 if t9 is negative
 	beq $t8, $zero, positive	# go to positive if t9 is pos else do 2's compliment
-	nor $t9, $t8, $zero		# invert t4 store in t9
+	nor $t9, $t9, $zero		# invert t4 store in t9
 	addi $t9, $t9, 1		# t9 = t9 +1
 
 positive:
