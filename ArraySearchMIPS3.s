@@ -911,8 +911,9 @@ rowRightFinal:
 
 colDownInit:
 
-	mul $t8, $s0, 4				# t8 = frameWidth * 4 (can reuse t8 for i)
+	sll $t8, $s0, 2				# t8 = frameWidth * 4 (can reuse t8 for i)
 	add $t6, $t7, $t8			# beginAddress = endAddress + frameWidth*4
+	#addi $t6, $t6, -4
 	addi $t8, $zero, 0			# i = 0 
 	
 colDownMove:
@@ -962,16 +963,16 @@ compareColDownCurAndMin:
 
 colDownNextAddr:
 
-	mul $t9, $s4, 4				#t9 = frameWidth*4
+	mul $t9, $s0, 4				#t9 = frameWidth*4
 	add $t6, $t6, $t9			#beginAddress = beginAddress + frameWidth
 	addi $t8, $t8, 1			# i = i + 1
 	j   colDownMove				# go back to top of for loop
 
 colDownFinal:
 
-	mul $t9, $s4, 4				#t9 = frameWidth*4
+	mul $t9, $s0, 4				#t9 = frameWidth*4
 	sub $t7, $t6, $t9			# endAddress = beginAddress - frameWidth*4
-	addi $t7, $t7, -1			# endAddress = endAddress - 1
+	addi $t7, $t7, -4			# endAddress = endAddress - 1
 	addi $t1, $t1, -1			# colDistance = colDistance - 1
 	addi $t2, $zero, 3			# whichLoop = 3
 	j frameSearch				# break; (go back to top of while loop)
@@ -980,7 +981,7 @@ colDownFinal:
 
 rowLeftInit:
 
-	addi $t6, $t7, 0			# beginAddress = endAddress
+	add  $t6, $t7, 0			# beginAddress = endAddress
 	addi $t8, $t0, 0			# i = rowDistance
 	
 rowLeftMove:
@@ -1045,7 +1046,7 @@ rowLeftFinal:
 
 colUpInit:
 
-	mul $t9, $s4, 4 			# t9 = framewidth*4
+	mul $t9, $s0, 4 			# t9 = framewidth*4
 	sub $t6, $t7, $t9			# beginAddress = endAddress - framewidth*4
 	addi $t8, $t1, 0			# i = colDistance
 
@@ -1098,16 +1099,16 @@ compareColUpCurAndMin:
 
 colUpNextAddr:
 
-	mul $t9, $s4, 4				#t9 = framewidth*4
+	mul $t9, $s0, 4				#t9 = framewidth*4
 	sub $t6, $t6, $t9			#beginAddress = beginAddress - frameWidth*4
 	addi $t8, $t8, -1			# i = i - 1
 	j   colUpMove				#go to top of for loop
 
 colUpFinal:
 
-	mul $t9, $s4, 4				#t9 = framewidth*4
+	mul $t9, $s0, 4				#t9 = framewidth*4
 	add $t7, $t6, $t9			#endAddress = beginAddress + frameWidth*4
-	addi $t7, $t7, 1			#endAddress = endAddress +1
+	addi $t7, $t7, 4			#endAddress = endAddress +1
 	addi $t1, $t1, -1			#colDistance =colDistance -1
 	addi $t2, $zero, 1			#whichLoop = 1
 	j    frameSearch
@@ -1143,7 +1144,7 @@ compare:
 	
 	addi $s6, $a1, 0		# frameAddressColMovement = frameAddress (begin Address)
 	addi $s7, $a2, 0		# windowAddressColMovement = windowAddress
-	addi $t6, $a1, 0		# frameAddressRowMovement =frameAddress
+	#addi $t6, $a1, 0		# frameAddressRowMovement =frameAddress
 	addi $t7, $a2, 0		# windowAddressRowMovement = windowAddress
 
 	addi $t0, $zero, 0		# row = 0
