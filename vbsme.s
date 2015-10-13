@@ -1,4 +1,4 @@
-#  Team Members:    
+#  Team Members: Brandon Lipjanic 50%, Sydney Clark 50%
 #  % Effort    :   
 #
 # ECE369,  
@@ -490,6 +490,18 @@ newline: .asciiz     "\n"
 main: 
     addi    $sp, $sp, -4    # Make space on stack
     sw      $ra, 0($sp)     # Save return address
+
+    # Start test 0
+    ############################################################
+    la      $a0, asize0    # 1st parameter: address of asize1[0]
+    la      $a1, frame0     # 2nd parameter: address of frame1[0]
+    la      $a2, window0    # 3rd parameter: address of window1[0] 
+   
+    jal     vbsme           # call function
+    jal     print_result    # print results to console
+    
+    ############################################################
+    # End of test 0 
          
     # Start test 1 
     ############################################################
@@ -697,66 +709,6 @@ print_result:
 #####################################################################
 
 
-# vbsme.s 
-# motion estimation is a routine in h.264 video codec that 
-# takes about 80% of the execution time of the whole code
-# given a frame(2d array, x and y dimensions can be any integer 
-# between 16 and 64) where "frame data" is stored under "frame"  
-# and a window (2d array of size 4x4, 4x8, 8x4, 8x8, 8x16, 16x8 or 16x16) 
-# where "window data" is stored under "window" 
-# and size of "window" and "frame" arrays are stored under "asize"
-
-# - initially current sum of difference is set to a very large value
-# - move "window" over the "frame" one cell at a time starting with location (0,0)
-# - moves are based spiral pattern 
-# - for each move, function calculates  the sum of absolute difference (SAD) 
-#   between the window and the overlapping block on the frame.
-# - if the calculated sum of difference is less than the current sum of difference
-#   then the current sum of difference is updated and the coordinate of the top left corner 
-#   for that matching block in the frame is recorded. 
-
-# for example SAD of two 4x4 arrays "window" and "block" shown below is 3  
-# window         block
-# -------       --------
-# 1 2 2 3       1 4 2 3  
-# 0 0 3 2       0 0 3 2
-# 0 0 0 0       0 0 0 0 
-# 1 0 0 5       1 0 0 4
-
-# program keeps track of the window position that results 
-# with the minimum sum of absolute difference. 
-# after scannig the whole frame
-# program returns the coordinates of the block with the minimum SAD
-# in $v0 (row) and $v1 (col) 
-
-
-# Sample Inputs and Output shown below:
-# Frame:
-#
-#  0   1   2   3   0   0   0   0   0   0   0   0   0   0   0   0 
-#  1   2   3   4   4   5   6   7   8   9  10  11  12  13  14  15 
-#  2   3  32   1   2   3  12  14  16  18  20  22  24  26  28  30 
-#  3   4   1   2   3   4  18  21  24  27  30  33  36  39  42  45 
-#  0   4   2   3   4   5  24  28  32  36  40  44  48  52  56  60 
-#  0   5   3   4   5   6  30  35  40  45  50  55  60  65  70  75 
-#  0   6  12  18  24  30  36  42  48  54  60  66  72  78  84  90 
-#  0   7  14  21  28  35  42  49  56  63  70  77  84  91  98 105 
-#  0   8  16  24  32  40  48  56  64  72  80  88  96 104 112 120 
-#  0   9  18  27  36  45  54  63  72  81  90  99 108 117 126 135 
-#  0  10  20  30  40  50  60  70  80  90 100 110 120 130 140 150 
-#  0  11  22  33  44  55  66  77  88  99 110 121 132 143 154 165 
-#  0  12  24  36  48  60  72  84  96 108 120 132   0   1   2   3 
-#  0  13  26  39  52  65  78  91 104 117 130 143   1   2   3   4 
-#  0  14  28  42  56  70  84  98 112 126 140 154   2   3   4   5 
-#  0  15  30  45  60  75  90 105 120 135 150 165   3   4   5   6 
-
-# Window:
-#  0   1   2   3 
-#  1   2   3   4 
-#  2   3   4   5 
-#  3   4   5   6 
-
-# cord x = 12, cord y = 12 returned in $v0 and $v1 registers
 
 .text
 .globl  vbsme
@@ -778,4 +730,460 @@ vbsme:
     li      $v1, 0
 
     # insert your code here
-   
+  
+
+spiral:	
+	addi $sp, $sp, -4	#make space on stack for sp
+	sw   $ra, 0($sp)	#store $ra
+
+	lw   $s0, 0($a0)	#$s0 = frameRowSize
+	lw   $s1, 4($a0)	#$s1 = frameColSize (frameWidth)
+	lw   $s2, 8($a0)	#$s2 = windowRowSize
+	lw   $s3, 12($a0)	#$s3 = windowColSize
+
+
+	sub  $t0, $s1, $s3	#rowDistance = (frameColSize - windowColSize) + 1
+	addi $t0, $t0, 1	# $t0 = rowDistance
+	
+	sub $t1, $s0, $s2	#colDistance = (frameRowSize - windowRowSize)
+				# $t1 = colDistance
+
+	addi $t2, $zero, 1	#$t2 = whichLoop (initalize to 1)
+
+	addi $s4, $zero, 32762  #s4 = minSAD = 620000
+	addi $t4, $zero, 0 	#tempColPosition = 0
+	addi $t5, $zero, 0 	#tempRowPosition = 0
+	add $t6, $zero, $a1 	#beginaddress = startAddress
+	add $t7, $zero, $a1	#endAddress = startAddress
+	addi $s5, $zero, 32762  #register to hold this value always
+
+frameSearch:
+	
+	#if both are zero go to exit, can reuse t6 now
+	
+	slt $t8, $t0, $zero
+	slt $t9, $t1, $zero
+	or  $t8, $t8, $t9
+	bne $t8, $zero, exit
+
+	
+ frameSearchSwitch:
+
+
+	addi	$t3, $zero, 1	
+	beq	$t3, $t2, rowRightInit		#move to rowRight
+
+	addi	$t3, $zero, 2
+	beq	$t3, $t2, colDownInit		#move to colDown
+	
+	addi	$t3, $zero, 3
+	beq	$t3, $t2, rowLeftInit		#move to rowLeft
+
+	addi	$t3, $zero, 4
+	beq	$t3, $t2, colUpInit		#move to colUp
+
+
+#Case 1 traversing right accross a row
+
+rowRightInit:
+	
+	add	$t6, $zero, $t7			#beginAddress = endAddress 
+	addi	$t8, $zero, 0			# i = 0
+
+rowRightMove:
+	
+	#beq 	$t8, $t0, rowRightFinal		# if i = rowDistance stop looping
+	
+	slt	$t9, $t8, $t0			# if i < rowDistance, stay in loop
+	beq	$t9, $zero, rowRightFinal
+
+	move	$a1, $t6			# $a0 = fwSize (never changes)
+						# $a1 = beginAddress
+						# $a2 = windowAddress (never changes)
+
+	addi	$sp, $sp, -36
+	sw	$t0, 0($sp)
+	sw	$t1, 4($sp)
+	sw	$t2, 8($sp)
+	sw	$t3, 12($sp)
+	sw	$t4, 16($sp)
+	sw	$t5, 20($sp)	
+	sw	$t6, 24($sp)
+	sw	$t7, 28($sp)
+	sw	$t8, 32($sp)
+	
+	jal 	compare
+	#Im assuming the value of currentSAD is stored in t3
+
+	lw	$t0, 0($sp)
+	lw	$t1, 4($sp)
+	lw	$t2, 8($sp)
+	lw	$t3, 12($sp)
+	lw	$t4, 16($sp)
+	lw	$t5, 20($sp)	
+	lw	$t6, 24($sp)
+	lw	$t7, 28($sp)
+	lw	$t8, 32($sp)
+	
+	addi	$sp, $sp, 36
+	add 	$t3, $v0, $zero
+	
+	beq	$s4, $s5, compareRowRightCurAndMin	# if minSAD != 62000
+	addi 	$t4, $t4, 1		     		# tempColPosition = tempColPosition + 1 no offset by 4 because not a mem address
+
+compareRowRightCurAndMin:  
+
+	slt $t9, $t3, $s4			# t9 = 1 if currentSAD < minSAD
+	beq $t9, $zero, rowRightNextAddr	# skip reassigning values if currentSAD >= minSAD
+	addi $s4, $t3, 0			# minSAD = currentSAD
+	addi $s6, $t5, 0			#finalRowPos = tempRowPos
+	addi $s7, $t4, 0			#finalColPos = tempColPos
+	
+rowRightNextAddr:
+	
+	addi $t6, $t6, 4			# beginAddress = beginAddress + 1
+	addi $t8, $t8, 1			# i = i + 1
+	j    rowRightMove			# go back to top of for loop 
+
+rowRightFinal:
+
+	addi $t7, $t6, -4			# endAddress = beginAddress - 1
+	addi $t0, $t0, -1			# rowDistance = rowDistance - 1 	
+	addi $t2, $zero, 2			# whichLoop = 2			
+	j    frameSearch			# break; (go back to top of while loop)
+
+
+
+#Case 2 traversing down a column 
+
+colDownInit:
+
+	sll $t8, $s1, 2				# t8 = frameWidth * 4 (can reuse t8 for i)
+	add $t6, $t7, $t8			# beginAddress = endAddress + frameWidth*4
+	
+	addi $t8, $zero, 0			# i = 0 
+	
+colDownMove:
+
+	#beq $t8, $t1, colDownFinal		# if i = colDistance go to colDownFinal
+
+	slt	$t9, $t8, $t1			# if (i < colDistance) stay in loop
+	beq	$t9, $zero, colDownFinal
+
+	move	$a1, $t6			# $a0 = fwSize (never changes)
+						# $a1 = beginAddress
+						# $a2 = windowAddress (never changes)
+
+	addi	$sp, $sp, -36
+	sw	$t0, 0($sp)
+	sw	$t1, 4($sp)
+	sw	$t2, 8($sp)
+	sw	$t3, 12($sp)
+	sw	$t4, 16($sp)
+	sw	$t5, 20($sp)	
+	sw	$t6, 24($sp)
+	sw	$t7, 28($sp)
+	sw	$t8, 32($sp)
+	
+
+	jal 	compare
+	#Im assuming the value of currentSAD is stored in t3
+
+	
+
+
+	lw	$t0, 0($sp)
+	lw	$t1, 4($sp)
+	lw	$t2, 8($sp)
+	lw	$t3, 12($sp)
+	lw	$t4, 16($sp)
+	lw	$t5, 20($sp)	
+	lw	$t6, 24($sp)
+	lw	$t7, 28($sp)
+	lw	$t8, 32($sp)
+	
+	addi	$sp, $sp, 36
+	add 	$t3, $v0, $zero
+
+	addi 	$t5, $t5, 1			# tempRowPos = tempRowPos + 1
+	
+compareColDownCurAndMin:
+
+	slt $t9, $t3, $s4			# t9 = 1 if currentSAD < minSAD
+	beq $t9, $zero, colDownNextAddr		# skip reassigning values if currentSAD > = minSAD
+	addi $s4, $t3, 0			# minSAD = currentSAD
+	addi $s6, $t5, 0			#finalRowPos = tempRowPos
+	addi $s7, $t4, 0			#finalColPos = tempColPos
+
+colDownNextAddr:
+
+	sll $t9, $s1, 2				#t9 = frameWidth*4
+	add $t6, $t6, $t9			#beginAddress = beginAddress + frameWidth
+	addi $t8, $t8, 1			# i = i + 1
+	j   colDownMove				# go back to top of for loop
+
+colDownFinal:
+
+	sll $t9, $s1, 2				#t9 = frameWidth*4
+	sub $t7, $t6, $t9			# endAddress = beginAddress - frameWidth*4
+	addi $t7, $t7, -4			# endAddress = endAddress - 1
+	addi $t1, $t1, -1			# colDistance = colDistance - 1
+	addi $t2, $zero, 3			# whichLoop = 3
+	j frameSearch				# break; (go back to top of while loop)
+
+
+
+#Case 3 traversing left accross a row
+
+rowLeftInit:
+
+	add  $t6, $t7, 0			# beginAddress = endAddress
+	addi $t8, $t0, 0			# i = rowDistance
+	
+rowLeftMove:
+	
+	#beq $t8, $zero, rowLeftFinal		# if i = 0 go to rowLeftFinal
+
+	ble	$t8, $zero, rowLeftFinal
+
+	move	$a1, $t6			# $a0 = fwSize (never changes)
+						# $a1 = beginAddress
+						# $a2 = windowAddress (never changes)
+	
+	addi	$sp, $sp, -36
+	sw	$t0, 0($sp)
+	sw	$t1, 4($sp)
+	sw	$t2, 8($sp)
+	sw	$t3, 12($sp)
+	sw	$t4, 16($sp)
+	sw	$t5, 20($sp)	
+	sw	$t6, 24($sp)
+	sw	$t7, 28($sp)
+	sw	$t8, 32($sp)
+	
+
+	jal 	compare
+	#Im assuming the value of currentSAD is stored in t3
+
+	lw	$t0, 0($sp)
+	lw	$t1, 4($sp)
+	lw	$t2, 8($sp)
+	lw	$t3, 12($sp)
+	lw	$t4, 16($sp)
+	lw	$t5, 20($sp)	
+	lw	$t6, 24($sp)
+	lw	$t7, 28($sp)
+	lw	$t8, 32($sp)
+	
+	addi	$sp, $sp, 36
+	add 	$t3, $v0, $zero
+
+	addi 	$t4, $t4, -1			# tempColPos = tempColPos - 1
+
+compareRowLeftCurAndMin:
+
+	slt $t9, $t3, $s4			# t9 = 1 if currentSAD < minSAD
+	beq $t9, $zero, rowLeftNextAddr		# skip reassigning values if currentSAD >= minSAD
+	addi $s4, $t3, 0			# minSAD = currentSAD
+	addi $s6, $t5, 0			#finalRowPos = tempRowPos
+	addi $s7, $t4, 0			#finalColPos = tempColPos
+	
+rowLeftNextAddr:
+
+	addi $t6, $t6, -4			# beginAddress = beginAddress - 1	
+	addi $t8, $t8, -1			# i = i -1 
+	j    rowLeftMove			# go back to top of for loop
+
+rowLeftFinal:
+
+	addi $t7, $t6, 4			# endAddress = beginAddress + 1
+	addi $t0, $t0, -1			# rowDistance = rowDistance - 1
+	addi $t2, $zero, 4			# whichLoop = 4
+	j    frameSearch
+
+#Case 4 movement up a column
+
+colUpInit:
+
+	sll $t9, $s1, 2 			# t9 = framewidth*4
+	sub $t6, $t7, $t9			# beginAddress = endAddress - framewidth*4
+	addi $t8, $t1, 0			# i = colDistance
+
+colUpMove:
+
+	beq $t8, $zero, colUpFinal		# if i = 0 go to colUpFinal
+
+	
+	#CALL compare
+	
+	move	$a1, $t6			# $a0 = fwSize (never changes)
+						# $a1 = beginAddress
+						# $a2 = windowAddress (never changes)
+	
+	addi	$sp, $sp, -36
+	sw	$t0, 0($sp)
+	sw	$t1, 4($sp)
+	sw	$t2, 8($sp)
+	sw	$t3, 12($sp)
+	sw	$t4, 16($sp)
+	sw	$t5, 20($sp)	
+	sw	$t6, 24($sp)
+	sw	$t7, 28($sp)
+	sw	$t8, 32($sp)
+	
+	jal 	compare
+	#Im assuming the value of currentSAD is stored in t3
+
+	lw	$t0, 0($sp)
+	lw	$t1, 4($sp)
+	lw	$t2, 8($sp)
+	lw	$t3, 12($sp)
+	lw	$t4, 16($sp)
+	lw	$t5, 20($sp)	
+	lw	$t6, 24($sp)
+	lw	$t7, 28($sp)
+	lw	$t8, 32($sp)
+	
+	addi	$sp, $sp, 36
+	add 	$t3, $v0, $zero
+
+	addi $t5, $t5, -1			#tempRowPos = tempRowPos - 1
+
+compareColUpCurAndMin:
+
+	slt $t9, $t3, $s4			# t9 = 1 if currentSAD < minSAD
+	beq $t9, $zero, colUpNextAddr		# skip reassigning values if currentSAD >= minSAD
+	addi $s4, $t3, 0			# minSAD = currentSAD
+	addi $s6, $t5, 0			#finalRowPos = tempRowPos
+	addi $s7, $t4, 0			#finalColPos = tempColPos
+
+colUpNextAddr:
+
+	sll $t9, $s1, 2				#t9 = framewidth*4
+	sub $t6, $t6, $t9			#beginAddress = beginAddress - frameWidth*4
+	addi $t8, $t8, -1			# i = i - 1
+	j   colUpMove				#go to top of for loop
+
+colUpFinal:
+
+	sll $t9, $s1, 2				#t9 = framewidth*4
+	add $t7, $t6, $t9			#endAddress = beginAddress + frameWidth*4
+	addi $t7, $t7, 4			#endAddress = endAddress + 1
+	addi $t1, $t1, -1			#colDistance = colDistance - 1
+	addi $t2, $zero, 1			#whichLoop = 1
+	j    frameSearch
+
+exit:
+	
+	move 	$v0, $s6				#return finRowPos
+	move 	$v1, $s7				#return finalColPos
+	lw 	$ra, 0($sp)
+	addi	$sp, $sp, 4
+	jr   	$ra
+
+
+#compare function start
+
+
+
+
+
+
+
+
+
+compare:
+
+	addi $sp, $sp, -24
+	sw $ra, 0($sp)
+	sw $s4, 4($sp)
+	sw $s5, 8($sp)
+	sw $s6, 12($sp)	
+	sw $s7, 16($sp)
+	sw $a1, 20($sp)
+	
+	addi $s6, $a1, 0		# frameAddressColMovement = frameAddress (begin Address)
+	addi $s7, $a2, 0		# windowAddressColMovement = windowAddress
+	addi $t6, $a1, 0		# frameAddressRowMovement =frameAddress
+	addi $t7, $a2, 0		# windowAddressRowMovement = windowAddress
+
+	addi $t0, $zero, 0		# row = 0
+	addi $t1, $zero, 0		# col = 0
+	addi $t2, $zero, 0		# sum = 0
+	addi $t3, $zero, 0 		# value = 0
+
+
+rowLoop:
+
+	slt  $t9, $t0, $s3		# if (row < windowCol) == 1
+	beq  $t9, $zero, compareReturn  # 1 != 0, don't branch	
+
+	add $s6, $t6, $zero			# fACM = fARM
+	add $s7, $t7, $zero			# wACM = wARM
+	
+colLoopInit:
+	
+	addi $t1, $zero, 0		# col = 0
+
+colLoopBegin:
+
+	slt	$t5, $t1, $s2
+	beq	$t5, $zero, rowLoopAssign
+	
+	lw   $s4, 0($s6)
+	lw   $s5, 0($s7)
+	sub $t9, $s4, $s5		# t9 = fACM(val) - wACM(val)
+	slt $t8, $t9, $zero		# t8 = 1 if t9 is negative
+	beq $t8, $zero, positive	# go to positive if t9 is pos else do 2's complement
+	nor $t9, $t9, $zero		# invert t4 store in t9
+	addi $t9, $t9, 1		# t9 = t9 +1
+
+positive:
+	
+	add $t2, $t2, $t9		# sum = sum + value
+	sll $t5, $s1, 2
+	add $s6, $s6, $t5		# fACM = fACM + frameCol
+	sll $t5, $s3, 2
+	add $s7, $s7, $t5		# wACM = wACM + windowCol	
+	addi $t1, $t1, 1		# col = col + 1
+	#bne $t1, $s2, colLoopBegin 	# go to colLoopBegin if col < windowRow
+	j colLoopBegin
+	
+rowLoopAssign:
+
+	addi $t6, $t6, 4		#fARM = fARM + 1
+	addi $t7, $t7, 4		#wARM = wARM + 1
+	addi $t0, $t0, 1		# row = row + 1
+	j    rowLoop
+
+compareReturn:		
+	
+	add $v0, $t2, $zero			# return sum
+
+	lw $ra, 0($sp)
+	lw $s4, 4($sp)
+	lw $s5, 8($sp)
+	lw $s6, 12($sp)	
+	lw $s7, 16($sp)
+	lw $a1, 20($sp)
+	addi $sp, $sp, 24
+
+	jr $ra				# return to inside for loop
+
+
+	
+	
+	
+
+	
+	
+
+
+
+	
+	
+
+
+
+	 
+	
